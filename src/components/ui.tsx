@@ -1,6 +1,5 @@
 import { X } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 
 interface SheetProps {
   open: boolean;
@@ -9,23 +8,26 @@ interface SheetProps {
   children: ReactNode;
 }
 
-/** A bottom sheet modal — the primary progressive-disclosure surface. */
 export function Sheet({ open, onClose, title, children }: SheetProps) {
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "";
-      };
-    }
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [open]);
 
   if (!open) return null;
 
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] bg-black/60 flex flex-col justify-end" onClick={onClose}>
+  return (
+    <div
+      className="fixed inset-0 z-[9999] bg-black/60 flex flex-col justify-end"
+      onClick={onClose}
+      style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}
+    >
       <div
-        className="sheet-panel max-h-[85vh] overflow-auto rounded-t-3xl bg-slate-800 border-x border-t border-white/10"
+        className="sheet-panel max-h-[85vh] overflow-y-auto rounded-t-3xl bg-slate-800 border-x border-t border-white/10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-5 pt-3 pb-2 border-b border-white/5">
@@ -42,8 +44,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
         </div>
         <div className="p-4">{children}</div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
 }
 
