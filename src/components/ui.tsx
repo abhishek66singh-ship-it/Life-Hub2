@@ -32,20 +32,22 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
         bottom: 0,
         zIndex: 9999,
         backgroundColor: "rgba(0, 0, 0, 0.6)",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-end",
       }}
       onClick={onClose}
     >
       <div
+        className="sheet-panel"
         style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
           maxHeight: "85vh",
           overflow: "auto",
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
           backgroundColor: "#1e293b",
+          border: "1px solid rgba(255,255,255,0.1)",
+          borderTop: "none",
         }}
         onClick={(e) => e.stopPropagation()}
       >
