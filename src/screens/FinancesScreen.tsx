@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, createContext, useContext } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Plus, Upload, Loader2, Trash2, RefreshCw, TrendingUp, PieChart as PieIcon,
-  Filter, ScanLine, BadgeDollarSign, Pencil, ChevronDown,
+  Filter, ScanLine, BadgeDollarSign, Pencil, ChevronDown, Wallet, ArrowUpRight,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -15,47 +15,6 @@ import {
 } from "../types";
 import { todayISO, addDays, daysBetween, parseISO, formatDateLong } from "../lib/dates";
 
-// Currency context
-interface CurrencyContextValue {
-  currency: CurrencyCode;
-  setCurrency: (c: CurrencyCode) => void;
-  formatCurrency: (amount: number) => string;
-  symbol: string;
-}
-
-const CurrencyContext = createContext<CurrencyContextValue | null>(null);
-
-function useCurrency() {
-  const ctx = useContext(CurrencyContext);
-  if (!ctx) {
-    // Default values if not wrapped in provider
-    return {
-      currency: "INR" as CurrencyCode,
-      setCurrency: () => {},
-      formatCurrency: (amount: number) => `₹${amount.toFixed(2)}`,
-      symbol: "₹",
-    };
-  }
-  return ctx;
-}
-
-function CurrencyProvider({ children }: { children: React.ReactNode }) {
-  const [currency, setCurrency] = useState<CurrencyCode>("INR");
-
-  const formatCurrency = (amount: number) => {
-    const { symbol } = CURRENCY_CONFIG[currency];
-    return `${symbol}${amount.toFixed(2)}`;
-  };
-
-  const symbol = CURRENCY_CONFIG[currency].symbol;
-
-  return (
-    <CurrencyContext.Provider value={{ currency, setCurrency, formatCurrency, symbol }}>
-      {children}
-    </CurrencyContext.Provider>
-  );
-}
-
 const OCR_SAMPLES = [
   { amount: 14.5, payee: "Starbucks", category: "Food" as ExpenseCategory },
   { amount: 62.3, payee: "Whole Foods", category: "Food" as ExpenseCategory },
@@ -67,17 +26,13 @@ const OCR_SAMPLES = [
 ];
 
 export function FinancesScreen() {
-  return (
-    <CurrencyProvider>
-      <FinancesContent />
-    </CurrencyProvider>
-  );
-}
-
-function FinancesContent() {
   const { transactions, addTransaction, updateTransaction, deleteTransaction } = useApp();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [currency, setCurrency] = useState<CurrencyCode>("INR");
+
+  const symbol = CURRENCY_CONFIG[currency].symbol;
+  const formatCurrency = (amount: number) => `${symbol}${amount.toFixed(2)}`;
 
   const openAdd = () => {
     setEditing(null);
@@ -91,17 +46,26 @@ function FinancesContent() {
 
   return (
     <div className="px-4 pt-5 space-y-5">
-      <Header />
+      <Header currency={currency} setCurrency={setCurrency} formatCurrency={formatCurrency} />
 
-      <Summary transactions={transactions} />
+      <Summary transactions={transactions} formatCurrency={formatCurrency} />
 
-      <SubscriptionManager transactions={transactions} onDelete={deleteTransaction} onEdit={openEdit} />
+      <SubscriptionManager
+        transactions={transactions}
+        onDelete={deleteTransaction}
+        onEdit={openEdit}
+        formatCurrency={formatCurrency}
+      />
 
-      <Analytics transactions={transactions} />
+      <Analytics transactions={transactions} formatCurrency={formatCurrency} />
 
-      <TransactionList transactions={transactions} onDelete={deleteTransaction} onEdit={openEdit} />
+      <TransactionList
+        transactions={transactions}
+        onDelete={deleteTransaction}
+        onEdit={openEdit}
+        formatCurrency={formatCurrency}
+      />
 
-      {/* Floating Add button */}
       <button
         onClick={openAdd}
         className="tap-highlight-none fixed bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition-all hover:bg-emerald-400 active:scale-95 animate-pulse-glow"
@@ -113,6 +77,7 @@ function FinancesContent() {
       <TransactionSheet
         open={sheetOpen}
         editing={editing}
+        symbol={symbol}
         onClose={() => setSheetOpen(false)}
         onSubmit={async (t) => {
           if (editing) {
@@ -127,9 +92,13 @@ function FinancesContent() {
   );
 }
 
-function Header() {
-  const { currency, setCurrency, symbol } = useCurrency();
-
+function Header({
+  currency, setCurrency, formatCurrency: _fmt,
+}: {
+  currency: CurrencyCode;
+  setCurrency: (c: CurrencyCode) => void;
+  formatCurrency: (a: number) => string;
+}) {
   return (
     <div className="flex items-center justify-between">
       <div>
@@ -137,7 +106,6 @@ function Header() {
         <p className="text-xs text-slate-400 mt-0.5">Track spending & subscriptions</p>
       </div>
       <div className="flex items-center gap-2">
-        {/* Currency Selector */}
         <div className="relative">
           <select
             value={currency}
@@ -157,8 +125,7 @@ function Header() {
   );
 }
 
-function Summary({ transactions }: { transactions: Transaction[] }) {
-  const { formatCurrency } = useCurrency();
+function Summary({ transactions, formatCurrency }: { transactions: Transaction[]; formatCurrency: (a: number) => string }) {
   const now = new Date();
   const monthTx = transactions.filter((t) => {
     const d = parseISO(t.date);
@@ -175,27 +142,41 @@ function Summary({ transactions }: { transactions: Transaction[] }) {
 
   return (
     <div className="grid grid-cols-2 gap-3">
-      <StatCard label="Spent This Month" value={formatCurrency(total)} accent="emerald" />
-      <StatCard label="Monthly Subs" value={formatCurrency(monthlySubs)} accent="indigo" sub={`${subs.length} active`} />
+      <StatCard label="Spent This Month" value={formatCurrency(total)} accent="emerald" icon={<ArrowUpRight size={14} />} />
+      <StatCard label="Monthly Subs" value={formatCurrency(monthlySubs)} accent="sky" sub={`${subs.length} active`} icon={<RefreshCw size={14} />} />
     </div>
   );
 }
 
-function StatCard({ label, value, accent, sub }: { label: string; value: string; accent: "emerald" | "indigo"; sub?: string }) {
-  const ring = accent === "emerald" ? "from-emerald-500/15" : "from-indigo-500/15";
-  const text = accent === "emerald" ? "text-emerald-400" : "text-indigo-400";
+function StatCard({ label, value, accent, sub, icon }: {
+  label: string;
+  value: string;
+  accent: "emerald" | "sky";
+  sub?: string;
+  icon: React.ReactNode;
+}) {
+  const ring = accent === "emerald" ? "from-emerald-500/15" : "from-sky-500/15";
+  const text = accent === "emerald" ? "text-emerald-400" : "text-sky-400";
+  const iconBg = accent === "emerald" ? "bg-emerald-500/15 text-emerald-400" : "bg-sky-500/15 text-sky-400";
   return (
     <div className={`rounded-2xl bg-gradient-to-br ${ring} to-slate-800 border border-white/10 p-4`}>
-      <p className="text-xs text-slate-400 font-medium">{label}</p>
-      <p className={`text-xl font-bold mt-1 ${text}`}>{value}</p>
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-xs text-slate-400 font-medium">{label}</p>
+        <span className={`flex h-6 w-6 items-center justify-center rounded-md ${iconBg}`}>{icon}</span>
+      </div>
+      <p className={`text-xl font-bold ${text}`}>{value}</p>
       {sub && <p className="text-[11px] text-slate-500 mt-0.5">{sub}</p>}
     </div>
   );
 }
 
 /* ---------- Subscription Manager ---------- */
-function SubscriptionManager({ transactions, onDelete, onEdit }: { transactions: Transaction[]; onDelete: (id: string) => void; onEdit: (t: Transaction) => void }) {
-  const { formatCurrency } = useCurrency();
+function SubscriptionManager({ transactions, onDelete, onEdit, formatCurrency }: {
+  transactions: Transaction[];
+  onDelete: (id: string) => void;
+  onEdit: (t: Transaction) => void;
+  formatCurrency: (a: number) => string;
+}) {
   const subs = transactions.filter((t) => t.isSubscription);
   const today = todayISO();
 
@@ -212,7 +193,7 @@ function SubscriptionManager({ transactions, onDelete, onEdit }: { transactions:
   return (
     <section>
       <div className="flex items-center gap-2 mb-3 px-1">
-        <RefreshCw size={16} className="text-indigo-400" />
+        <RefreshCw size={16} className="text-sky-400" />
         <h3 className="text-sm font-semibold text-slate-100">Subscriptions</h3>
         <span className="text-xs text-slate-500">({subs.length})</span>
       </div>
@@ -228,11 +209,11 @@ function SubscriptionManager({ transactions, onDelete, onEdit }: { transactions:
                 key={s.id}
                 className={`flex items-center gap-3 rounded-xl border p-3 transition-all ${
                   urgent
-                    ? "bg-indigo-500/10 border-indigo-500/30"
+                    ? "bg-sky-500/10 border-sky-500/30"
                     : "bg-slate-800/50 border-white/5"
                 }`}
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-400 shrink-0">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-500/15 text-sky-400 shrink-0">
                   <RefreshCw size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -242,7 +223,7 @@ function SubscriptionManager({ transactions, onDelete, onEdit }: { transactions:
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className={`text-xs font-semibold ${urgent ? "text-indigo-300" : "text-slate-300"}`}>
+                  <p className={`text-xs font-semibold ${urgent ? "text-sky-300" : "text-slate-300"}`}>
                     {d === 0 ? "Today" : d === 1 ? "Tomorrow" : `${d}d`}
                   </p>
                   <p className="text-[10px] text-slate-500">
@@ -272,8 +253,7 @@ function SubscriptionManager({ transactions, onDelete, onEdit }: { transactions:
 }
 
 /* ---------- Analytics ---------- */
-function Analytics({ transactions }: { transactions: Transaction[] }) {
-  const { formatCurrency } = useCurrency();
+function Analytics({ transactions, formatCurrency }: { transactions: Transaction[]; formatCurrency: (a: number) => string }) {
   const [range, setRange] = useState<"week" | "month">("week");
   const [catFilter, setCatFilter] = useState<"all" | ExpenseCategory>("all");
 
@@ -330,7 +310,6 @@ function Analytics({ transactions }: { transactions: Transaction[] }) {
         <span className="ml-auto text-xs text-slate-400">Total: {formatCurrency(total)}</span>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="flex rounded-lg bg-slate-900/60 p-0.5">
           {(["week", "month"] as const).map((r) => (
@@ -360,7 +339,6 @@ function Analytics({ transactions }: { transactions: Transaction[] }) {
         </div>
       </div>
 
-      {/* Bar chart */}
       <div className="mb-5">
         <p className="text-xs text-slate-400 mb-2">Spending trend ({range})</p>
         <div className="h-40">
@@ -380,7 +358,6 @@ function Analytics({ transactions }: { transactions: Transaction[] }) {
         </div>
       </div>
 
-      {/* Donut chart */}
       <div>
         <div className="flex items-center gap-2 mb-2">
           <PieIcon size={14} className="text-slate-400" />
@@ -424,8 +401,12 @@ function Analytics({ transactions }: { transactions: Transaction[] }) {
 }
 
 /* ---------- Transaction List ---------- */
-function TransactionList({ transactions, onDelete, onEdit }: { transactions: Transaction[]; onDelete: (id: string) => void; onEdit: (t: Transaction) => void }) {
-  const { formatCurrency } = useCurrency();
+function TransactionList({ transactions, onDelete, onEdit, formatCurrency }: {
+  transactions: Transaction[];
+  onDelete: (id: string) => void;
+  onEdit: (t: Transaction) => void;
+  formatCurrency: (a: number) => string;
+}) {
   const sorted = useMemo(
     () => transactions.slice().sort((a, b) => b.date.localeCompare(a.date)),
     [transactions]
@@ -433,7 +414,11 @@ function TransactionList({ transactions, onDelete, onEdit }: { transactions: Tra
 
   return (
     <section>
-      <h3 className="text-sm font-semibold text-slate-100 mb-3 px-1">All Transactions</h3>
+      <div className="flex items-center gap-2 mb-3 px-1">
+        <Wallet size={16} className="text-emerald-400" />
+        <h3 className="text-sm font-semibold text-slate-100">All Transactions</h3>
+        <span className="text-xs text-slate-500">({sorted.length})</span>
+      </div>
       <ul className="space-y-1.5">
         {sorted.map((t) => (
           <li
@@ -450,7 +435,7 @@ function TransactionList({ transactions, onDelete, onEdit }: { transactions: Tra
               <p className="truncate text-sm font-medium text-slate-100">
                 {t.payee}
                 {t.isSubscription && (
-                  <span className="ml-1.5 inline-flex items-center gap-0.5 rounded bg-indigo-500/15 px-1 py-0.5 text-[9px] font-medium text-indigo-300">
+                  <span className="ml-1.5 inline-flex items-center gap-0.5 rounded bg-sky-500/15 px-1 py-0.5 text-[9px] font-medium text-sky-300">
                     <RefreshCw size={8} /> Sub
                   </span>
                 )}
@@ -479,7 +464,7 @@ function TransactionList({ transactions, onDelete, onEdit }: { transactions: Tra
   );
 }
 
-/* ---------- Add Transaction Sheet (with Smart Upload) ---------- */
+/* ---------- Add/Edit Transaction Sheet ---------- */
 interface FormState {
   amount: string;
   payee: string;
@@ -499,20 +484,19 @@ const emptyForm: FormState = {
 };
 
 function TransactionSheet({
-  open, editing, onClose, onSubmit,
+  open, editing, symbol, onClose, onSubmit,
 }: {
   open: boolean;
   editing: Transaction | null;
+  symbol: string;
   onClose: () => void;
   onSubmit: (t: Omit<Transaction, "id" | "createdAt">) => Promise<void>;
 }) {
-  const { symbol } = useCurrency();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [ocrState, setOcrState] = useState<"idle" | "scanning" | "done">("idle");
   const [fileName, setFileName] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
-  // Populate form when editing target changes or sheet opens
   useEffect(() => {
     if (open && editing) {
       setForm({
@@ -544,7 +528,6 @@ function TransactionSheet({
   const handleFile = (file: File) => {
     setFileName(file.name);
     setOcrState("scanning");
-    // Simulate OCR with 1.5s delay, then pre-fill with randomized realistic data
     setTimeout(() => {
       const sample = OCR_SAMPLES[Math.floor(Math.random() * OCR_SAMPLES.length)];
       setForm((f) => ({
@@ -564,7 +547,6 @@ function TransactionSheet({
     if (!amt || amt <= 0 || !form.payee.trim()) return;
     setSaving(true);
 
-    // For edits, preserve existing renewal date unless subscription state changed
     let renewalDate: string | undefined;
     if (form.isSubscription) {
       if (editing?.renewalDate && editing.isSubscription && editing.billingCycle === form.billingCycle) {
@@ -594,7 +576,6 @@ function TransactionSheet({
 
   return (
     <Sheet open={open} onClose={handleClose} title={editing ? "Edit Transaction" : "Add Transaction"}>
-      {/* Smart Upload */}
       <div className="mb-4">
         <p className="mb-1.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Smart Upload</p>
         <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-600 bg-slate-900/40 px-4 py-5 transition-all hover:border-emerald-500/50 hover:bg-slate-900/70">
@@ -687,23 +668,22 @@ function TransactionSheet({
           </div>
         </Field>
 
-        {/* Subscription toggle */}
         <button
           type="button"
           onClick={() => setForm({ ...form, isSubscription: !form.isSubscription })}
           className={`flex w-full items-center justify-between rounded-xl border px-3.5 py-3 transition-all ${
             form.isSubscription
-              ? "border-indigo-500/40 bg-indigo-500/10"
+              ? "border-sky-500/40 bg-sky-500/10"
               : "border-white/10 bg-slate-700/30"
           }`}
         >
           <div className="flex items-center gap-2">
-            <RefreshCw size={16} className={form.isSubscription ? "text-indigo-400" : "text-slate-500"} />
+            <RefreshCw size={16} className={form.isSubscription ? "text-sky-400" : "text-slate-500"} />
             <span className="text-sm text-slate-200">Is this a Subscription?</span>
           </div>
           <span
             className={`relative h-5 w-9 rounded-full transition-colors ${
-              form.isSubscription ? "bg-indigo-500" : "bg-slate-600"
+              form.isSubscription ? "bg-sky-500" : "bg-slate-600"
             }`}
           >
             <span
@@ -725,7 +705,7 @@ function TransactionSheet({
                     onClick={() => setForm({ ...form, billingCycle: c })}
                     className={`flex-1 rounded-lg px-2 py-2 text-xs font-medium transition-all ${
                       form.billingCycle === c
-                        ? "bg-indigo-500 text-white"
+                        ? "bg-sky-500 text-white"
                         : "bg-slate-700/50 text-slate-400 hover:bg-slate-700"
                     }`}
                   >
@@ -749,7 +729,6 @@ function TransactionSheet({
   );
 }
 
-/** Compute the first renewal date from a start date + cycle. */
 function computeInitialRenewal(cycle: BillingCycle, startDate: string): string {
   const d = parseISO(startDate);
   if (cycle === "Weekly") return addDays(startDate, 7);
