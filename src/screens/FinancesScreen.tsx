@@ -383,7 +383,7 @@ function Analytics({ transactions, formatCurrency }: { transactions: Transaction
               </ResponsiveContainer>
             </div>
             <ul className="flex-1 space-y-1.5">
-              {byCategory
+              {[...byCategory]
                 .sort((a, b) => b.value - a.value)
                 .map((c) => (
                   <li key={c.name} className="flex items-center gap-2 text-xs">
