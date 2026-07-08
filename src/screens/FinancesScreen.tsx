@@ -343,7 +343,7 @@ function Analytics({ transactions, formatCurrency }: { transactions: Transaction
         <p className="text-xs text-slate-400 mb-2">Spending trend ({range})</p>
         <div className="h-40">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={byDay} margin={{ top: 5, right: 5, bottom: 0, left: -28 }}>
+            <BarChart data={byDay.map((d) => ({ ...d }))} margin={{ top: 5, right: 5, bottom: 0, left: -28 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
               <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} interval={range === "month" ? 4 : 0} />
               <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
@@ -370,7 +370,7 @@ function Analytics({ transactions, formatCurrency }: { transactions: Transaction
             <div className="h-36 w-36 shrink-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={byCategory} dataKey="value" nameKey="name" innerRadius={38} outerRadius={60} paddingAngle={2}>
+                  <Pie data={byCategory.map((c) => ({ ...c }))} dataKey="value" nameKey="name" innerRadius={38} outerRadius={60} paddingAngle={2}>
                     {byCategory.map((entry) => (
                       <Cell key={entry.name} fill={CATEGORY_COLORS[entry.name as ExpenseCategory]} />
                     ))}
