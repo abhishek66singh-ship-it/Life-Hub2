@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { AppProvider } from "./context/AppContext";
 import { AppShell } from "./components/AppShell";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthScreen } from "./screens/AuthScreen";
 import { HomeScreen } from "./screens/HomeScreen";
 import { FinancesScreen } from "./screens/FinancesScreen";
@@ -24,11 +25,13 @@ function LifeHub() {
 
   return (
     <AppProvider>
-      <AppShell active={tab} onChange={setTab}>
-        {tab === "home" && <HomeScreen onNavigate={setTab} />}
-        {tab === "finances" && <FinancesScreen />}
-        {tab === "calendar" && <CalendarScreen />}
-      </AppShell>
+      <ErrorBoundary>
+        <AppShell active={tab} onChange={setTab}>
+          {tab === "home" && <HomeScreen onNavigate={setTab} />}
+          {tab === "finances" && <FinancesScreen />}
+          {tab === "calendar" && <CalendarScreen />}
+        </AppShell>
+      </ErrorBoundary>
     </AppProvider>
   );
 }
